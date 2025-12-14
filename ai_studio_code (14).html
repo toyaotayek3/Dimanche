@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Générateur Bloc IV - Comparaison</title>
+    <style>
+        :root {
+            --primary: #009688; /* Teal / Sarcelle */
+            --secondary: #2c3e50;
+            --danger: #c0392b;
+            --font-main: 'Verdana', sans-serif;
+            --font-hand: 'Comic Sans MS', 'Chalkboard SE', sans-serif;
+        }
+
+        body {
+            font-family: var(--font-main);
+            margin: 0; display: flex; height: 100vh; background-color: #ecf0f1;
+        }
+
+        /* --- SIDEBAR --- */
+        #sidebar {
+            width: 320px; background: white; padding: 20px;
+            overflow-y: auto; border-right: 1px solid #bdc3c7;
+            display: flex; flex-direction: column; gap: 15px; flex-shrink: 0;
+        }
+
+        h2, h3 { color: var(--primary); margin: 0; }
+        h2 { font-size: 1.3rem; }
+        h3 { font-size: 0.9rem; border-bottom: 2px solid #bdc3c7; padding-bottom: 5px; text-transform: uppercase; margin-top: 10px;}
+
+        .control-group { display: flex; flex-direction: column; gap: 5px; }
+        label { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; cursor: pointer; }
+        select, input[type="number"] { padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; }
+
+        button {
+            padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px; transition: 0.2s;
+        }
+        .gen-btn { background: var(--primary); color: white; }
+        .gen-btn:hover { background: #00796b; }
+        .ans-btn { background: var(--secondary); color: white; }
+        .print-btn { background: #95a5a6; color: white; }
+
+        /* --- PREVIEW --- */
+        #preview-area {
+            flex: 1; padding: 40px; overflow-y: auto; background-color: #bdc3c7;
+            display: flex; justify-content: center;
+        }
+
+        .sheet {
+            background: white; width: 210mm; min-height: 297mm; padding: 15mm;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3); box-sizing: border-box; position: relative;
+        }
+
+        .header {
+            display: flex; justify-content: space-between; align-items: flex-end;
+            border-bottom: 3px solid var(--primary); padding-bottom: 20px; margin-bottom: 30px;
+        }
+
+        /* --- EXERCICES --- */
+        .exo-block { margin-bottom: 35px; page-break-inside: avoid; position: relative; }
+        
+        .exo-title {
+            background: #e0f2f1; padding: 10px 15px; 
+            border-left: 6px solid var(--primary); margin-bottom: 20px;
+            font-weight: bold; font-size: 1.1em; color: #2c3e50;
+        }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
+        
+        .card {
+            border: 1px solid #dfe6e9; border-radius: 8px; padding: 15px;
+            display: flex; flex-direction: column; align-items: center; text-align: center;
+            background: #fff; gap: 10px; position: relative;
+        }
+
+        /* --- FRACTIONS HORIZONTALES --- */
+        .frac { 
+            display: inline-flex; flex-direction: column; vertical-align: middle; 
+            align-items: center; margin: 0 5px; font-weight: bold; font-size: 1.3em; 
+        }
+        .frac .n { 
+            border-bottom: 2px solid black; padding: 0 5px; display: block; 
+            width: 100%; text-align: center; line-height: 1.2;
+        }
+        .frac .d { 
+            padding: 0 5px; display: block; width: 100%; text-align: center; line-height: 1.2;
+        }
+
+        /* --- INPUTS --- */
+        .input-box {
+            width: 40px; height: 35px; border: 2px dashed #95a5a6; border-radius: 4px;
+            display: inline-flex; justify-content: center; align-items: center; background: #fdfdfd;
+            font-size: 1.2em; font-weight: bold; color: #2c3e50;
+        }
+        
+        .ans-text {
+            display: none; 
+            font-family: var(--font-hand); color: var(--danger); font-size: 1.4em; font-weight: bold;
+        }
+        
+        .sheet.show-corr .ans-text { display: inline-block; }
+        .sheet.show-corr .input-box { border-color: transparent; }
+
+        /* --- QCM & VF --- */
+        .qcm-options { width: 100%; margin-top: 10px; display: flex; flex-direction: column; gap: 8px; align-items: center;}
+        .qcm-opt { border: 1px solid #ecf0f1; width: 95%; padding: 5px 10px; border-radius: 5px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 0.95em; }
+        
+        .vf-row { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 6px 0; border-bottom: 1px dashed #eee; }
+        .checkbox-box { width: 20px; height: 20px; border: 2px solid #7f8c8d; border-radius: 4px; background: white; display: flex; align-items: center; justify-content: center; flex-shrink: 0;}
+        .corr-mark { display: none; color: var(--danger); font-size: 1.4em; font-weight: bold; }
+        .sheet.show-corr .corr-mark { display: block; }
+        .sheet.show-corr .checkbox-box.correct { border-color: var(--danger); }
+
+        /* --- RELIER --- */
+        .match-container { display: flex; justify-content: space-between; gap: 20px; padding: 0 10px; position: relative; }
+        .match-col { flex: 1; display: flex; flex-direction: column; gap: 15px; z-index: 2; }
+        .match-card {
+            border: 1px solid #bdc3c7; padding: 8px; border-radius: 6px; min-height: 50px;
+            display: flex; align-items: center; justify-content: center; position: relative; background: white;
+        }
+        .anchor { width: 10px; height: 10px; background: #2c3e50; border-radius: 50%; position: absolute; top: 50%; transform: translateY(-50%); }
+        .anchor.left { right: -5px; }
+        .anchor.right { left: -5px; }
+        
+        .connections-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 1; display: none;
+        }
+        .connection-line { stroke: var(--danger); stroke-width: 2; stroke-linecap: round; opacity: 0.8; }
+        .sheet.show-corr .connections-layer { display: block; }
+
+        /* --- SVG --- */
+        svg { overflow: visible; display: block; width: 100%; height: 60px; margin: 5px auto; }
+        .shape-fill { fill: #009688; stroke: black; stroke-width: 1.5; }
+        .shape-empty { fill: white; stroke: black; stroke-width: 1.5; }
+        .bar-label { font-size: 10px; fill: #7f8c8d; }
+
+        /* --- HELPERS --- */
+        .row-center { display: flex; align-items: center; gap: 10px; justify-content: center; flex-wrap: wrap; font-size: 1.2em;}
+
+        @media print {
+            body { display: block; background: white; }
+            #sidebar, #preview-area { display: none; }
+            #preview-area { padding: 0; display: block; }
+            .sheet { width: 100%; padding: 0; margin: 0; box-shadow: none; }
+            .exo-title { background-color: #e0f2f1 !important; -webkit-print-color-adjust: exact; }
+            .sheet.show-corr .connections-layer { display: block !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <h2>Bloc IV : Comparaison</h2>
+
+    <div class="control-group">
+        <label>Difficulté : 
+            <select id="level">
+                <option value="1">Niveau 1 (Cas simples / Visuel)</option>
+                <option value="2" selected>Niveau 2 (Tables courantes)</option>
+                <option value="3">Niveau 3 (Toutes tables)</option>
+            </select>
+        </label>
+    </div>
+
+    <div class="control-group">
+        <label>Nb. Questions : 
+            <input type="number" id="nbQuestions" value="4" min="1" max="8">
+        </label>
+    </div>
+
+    <h3>Type d'Exercices</h3>
+    <div class="control-group">
+        <label><input type="checkbox" class="qtype" value="trous" checked> À Trous (< > =)</label>
+        <label><input type="checkbox" class="qtype" value="qcm" checked> QCM (Cocher)</label>
+        <label><input type="checkbox" class="qtype" value="vf" checked> Vrai / Faux</label>
+        <label><input type="checkbox" class="qtype" value="relier" checked> Relier</label>
+    </div>
+
+    <h3>Objectifs</h3>
+    <div class="control-group">
+        <label><input type="checkbox" class="obj" value="obj21" checked> 21. Numérateur = 1</label>
+        <label><input type="checkbox" class="obj" value="obj22" checked> 22. Même Numérateur</label>
+        <label><input type="checkbox" class="obj" value="obj23" checked> 23. Même Dénominateur</label>
+        <label><input type="checkbox" class="obj" value="obj24" checked> 24. Après réduction</label>
+    </div>
+
+    <div class="control-group">
+        <label><input type="checkbox" id="use-visu" checked> Aides Visuelles (Barres)</label>
+    </div>
+
+    <button class="gen-btn" onclick="generateSheet()">Générer la Fiche</button>
+    <button class="ans-btn" onclick="toggleCorrection()">Afficher/Masquer Corrigé</button>
+    <button class="print-btn" onclick="window.print()">Imprimer</button>
+</div>
+
+<div id="preview-area">
+    <div id="sheet" class="sheet"></div>
+</div>
+
+<script>
+    const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+    const shuffle = (array) => array.sort(() => Math.random() - 0.5);
+    const makeFrac = (n, d) => `<div class="frac"><span class="n">${n}</span><span class="d">${d}</span></div>`;
+    
+    const getSymbol = (n1, d1, n2, d2) => {
+        let v1 = n1/d1; let v2 = n2/d2;
+        if (Math.abs(v1 - v2) < 0.000001) return '=';
+        return v1 < v2 ? '<' : '>';
+    };
+
+    /* --- SVG ENGINE (BARRES COMPARATIVES) --- */
+    function drawCompareVisual(n1, d1, n2, d2) {
+        const w = 180; const h = 20; const gap = 10;
+        let svg = `<svg viewBox="0 0 200 65">`;
+        
+        // Barre 1
+        for(let i=0; i<d1; i++) {
+            let fill = i < n1;
+            svg += `<rect x="${10 + i*(w/d1)}" y="5" width="${w/d1}" height="${h}" class="${fill?'shape-fill':'shape-empty'}" />`;
+        }
+        svg += `<text x="2" y="${5+h/2+4}" font-size="10" class="bar-label">1</text>`;
+
+        // Barre 2
+        for(let i=0; i<d2; i++) {
+            let fill = i < n2;
+            svg += `<rect x="${10 + i*(w/d2)}" y="${5+h+gap}" width="${w/d2}" height="${h}" class="${fill?'shape-fill':'shape-empty'}" />`;
+        }
+        svg += `<text x="2" y="${5+h+gap+h/2+4}" font-size="10" class="bar-label">2</text>`;
+        
+        svg += `</svg>`;
+        return svg;
+    }
+
+    /* --- GENERATEURS PAR OBJECTIF --- */
+
+    function getNumbers(obj, level) {
+        let n1, d1, n2, d2;
+        let maxD = level === 1 ? 6 : (level === 2 ? 12 : 20);
+
+        if (obj === 'obj21') { // 1/n vs 1/m
+            n1 = 1; n2 = 1;
+            d1 = rand(2, maxD); d2 = rand(2, maxD);
+            while(d1 === d2) d2 = rand(2, maxD);
+        } 
+        else if (obj === 'obj22') { // a/b vs a/c (Même num)
+            n1 = rand(2, 9); n2 = n1;
+            d1 = rand(n1+1, maxD+5); d2 = rand(n1+1, maxD+5);
+            while(d1 === d2) d2 = rand(n1+1, maxD+5);
+        } 
+        else if (obj === 'obj23') { // a/c vs b/c (Même den)
+            d1 = rand(3, maxD); d2 = d1;
+            n1 = rand(1, d1-1); n2 = rand(1, d1-1);
+            while(n1 === n2) n2 = rand(1, d1-1);
+        } 
+        else { // Obj 24 : Différents (Réduction)
+            if (level === 1) {
+                // Cas facile : un dénominateur multiple de l'autre
+                d1 = rand(2, 5); 
+                let k = rand(2, 4);
+                d2 = d1 * k;
+                n1 = rand(1, d1-1);
+                n2 = rand(1, d2-1);
+                // Force equality sometimes
+                if(Math.random() < 0.2) { n2 = n1 * k; }
+            } else {
+                // Cas général
+                d1 = rand(2, 8); d2 = rand(2, 8);
+                n1 = rand(1, d1); n2 = rand(1, d2);
+                while(d1 === d2) d2 = rand(2, 8);
+            }
+        }
+        return {n1, d1, n2, d2};
+    }
+
+    function genComparison(qty, level, obj, type) {
+        let useVisu = document.getElementById('use-visu').checked;
+        // Pas de visuel pour Obj 24 (Réduction) sauf si niveau 1, sinon ça donne la réponse
+        if (obj === 'obj24' && level > 1) useVisu = false;
+
+        let html = "";
+        if (type === 'trous' || type === 'qcm') html += `<div class="grid">`;
+        else html += `<div>`;
+
+        for(let i=0; i<qty; i++) {
+            let {n1, d1, n2, d2} = getNumbers(obj, level);
+            let sym = getSymbol(n1, d1, n2, d2);
+
+            // --- TYPE : A TROUS ---
+            if(type === 'trous') {
+                html += `<div class="card">
+                    ${useVisu ? drawCompareVisual(n1, d1, n2, d2) : ''}
+                    <div class="row-center">
+                        ${makeFrac(n1, d1)} 
+                        <div class="input-box"><span class="ans-text">${sym}</span></div>
+                        ${makeFrac(n2, d2)}
+                    </div>
+                </div>`;
+            } 
+            
+            // --- TYPE : QCM ---
+            else if(type === 'qcm') {
+                let opts = [];
+                if (sym === '<') opts = [{l:'<', c:true}, {l:'>', c:false}, {l:'=', c:false}];
+                else if (sym === '>') opts = [{l:'>', c:true}, {l:'<', c:false}, {l:'=', c:false}];
+                else opts = [{l:'=', c:true}, {l:'<', c:false}, {l:'>', c:false}];
+                
+                let optsHTML = opts.map(o => `<div class="qcm-opt" style="justify-content:center;"><div class="checkbox-box ${o.c?'correct':''}">${o.c?'<span class="corr-mark">✔</span>':''}</div><div style="font-size:1.5em; font-weight:bold;">${o.l}</div></div>`).join('');
+
+                html += `<div class="card">
+                    ${useVisu ? drawCompareVisual(n1, d1, n2, d2) : ''}
+                    <div class="row-center" style="margin-bottom:5px;">${makeFrac(n1, d1)} ... ${makeFrac(n2, d2)}</div>
+                    <div class="qcm-options" style="flex-direction:row; justify-content:center;">${optsHTML}</div>
+                </div>`;
+            }
+
+            // --- TYPE : VRAI / FAUX ---
+            else if(type === 'vf') {
+                // Générer une affirmation (parfois vraie, parfois fausse)
+                let displayedSym = Math.random() > 0.5 ? sym : (sym==='<'?'>':'<'); // Swap symbol randomly
+                let isTrue = (displayedSym === sym);
+                
+                let markV = isTrue ? '<span class="corr-mark">✔</span>' : '';
+                let markF = !isTrue ? '<span class="corr-mark">✔</span>' : '';
+                let classV = isTrue ? 'checkbox-box correct' : 'checkbox-box';
+                let classF = !isTrue ? 'checkbox-box correct' : 'checkbox-box';
+
+                html += `<div class="vf-row">
+                    <div class="row-center" style="width:50%;">
+                        ${makeFrac(n1, d1)} <span style="font-weight:bold; margin:0 10px;">${displayedSym}</span> ${makeFrac(n2, d2)}
+                    </div>
+                    <div style="display:flex; gap:15px;">
+                        <div style="display:flex; align-items:center; gap:5px;"><div class="${classV}">${markV}</div> V</div>
+                        <div style="display:flex; align-items:center; gap:5px;"><div class="${classF}">${markF}</div> F</div>
+                    </div>
+                </div>`;
+            }
+        }
+        
+        if (type === 'trous' || type === 'qcm') html += `</div>`;
+        else html += `</div>`;
+        return html;
+    }
+
+    // --- RELIER (Spécial) ---
+    function genRelierContent(obj, level, qty) {
+        let pairs = [];
+        let safety = 0;
+        while(pairs.length < qty && safety < 100) {
+            safety++;
+            let {n1, d1, n2, d2} = getNumbers(obj, level);
+            let sym = getSymbol(n1, d1, n2, d2);
+            let txt = (sym === '<') ? "Plus petit" : (sym === '>' ? "Plus grand" : "Égal");
+            
+            // Pour éviter les doublons qui rendent l'exo impossible, on varie
+            let l = `<div class="row-center" style="font-size:0.9em;">${makeFrac(n1, d1)} ... ${makeFrac(n2, d2)}</div>`;
+            
+            // On ajoute un ID unique pour permettre le mapping même si le texte de droite est identique
+            pairs.push({l, r: txt, sym: sym, id: `pair-${safety}`});
+        }
+        
+        let left = shuffle([...pairs]); 
+        // Pour la colonne de droite, on ne veut pas 4 fois "Plus petit". 
+        // Astuce : on crée des étiquettes statiques < , > , = et on relie vers elles
+        // OU on garde le mode classique. Gardons le mode classique mais attention aux doublons.
+        // Simplification : Relier à un symbole.
+        
+        let symbols = [
+            {sym:'<', label:'<', id:'sym1'}, 
+            {sym:'>', label:'>', id:'sym2'}, 
+            {sym:'=', label:'=', id:'sym3'}
+        ];
+        
+        let html = `<div class="match-container"><svg class="connections-layer" id="c${Date.now()}"></svg>
+            <div class="match-col" style="flex:2;">`;
+        
+        left.forEach(p => {
+            // On stocke le symbole cible dans le data-target
+            html += `<div class="match-card left-card" data-target="${p.sym}">${p.l}<div class="anchor left"></div></div>`;
+        });
+        
+        html += `</div><div class="match-col" style="flex:1;">`;
+        
+        symbols.forEach(s => {
+            // ID pour les lignes
+            html += `<div class="match-card right-card" data-val="${s.sym}"><div class="anchor right"></div><div style="font-size:2em; font-weight:bold;">${s.label}</div></div>`;
+        });
+        
+        html += `</div></div>`;
+        return html;
+    }
+
+    /* --- MAIN --- */
+
+    function generateSheet() {
+        const sheet = document.getElementById('sheet');
+        sheet.innerHTML = '';
+        sheet.classList.remove('show-corr');
+
+        const level = parseInt(document.getElementById('level').value);
+        const qty = parseInt(document.getElementById('nbQuestions').value);
+        const objs = Array.from(document.querySelectorAll('.obj:checked')).map(cb => cb.value);
+        const types = Array.from(document.querySelectorAll('.qtype:checked')).map(cb => cb.value);
+
+        if(objs.length === 0 || types.length === 0) return;
+
+        sheet.innerHTML += `
+            <div class="header">
+                <div>
+                    <div><strong>Nom :</strong> .................................................</div>
+                    <div><strong>Date :</strong> .................................................</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:1.5em; font-weight:bold; color:var(--primary);">BLOC IV : COMPARAISON</div>
+                    <div style="color:#7f8c8d;">Niveau ${level}</div>
+                </div>
+            </div>
+        `;
+
+        objs.forEach((obj, index) => {
+            const type = types[index % types.length];
+            let consigne = "";
+            
+            if (type === 'trous') consigne = "Compare les fractions en utilisant < , > ou =.";
+            else if (type === 'qcm') consigne = "Coche le bon symbole.";
+            else if (type === 'vf') consigne = "Vrai ou Faux ?";
+            else if (type === 'relier') consigne = "Relie chaque comparaison au bon symbole.";
+
+            let content = "";
+            if (type === 'relier') content = genRelierContent(obj, level, qty);
+            else content = genComparison(qty, level, obj, type);
+
+            sheet.innerHTML += `<div class="exo-block"><div class="exo-title"><span>${index+1}. ${consigne}</span></div>${content}</div>`;
+        });
+        
+        setTimeout(drawAllConnections, 100);
+    }
+
+    // Dessin des lignes pour le "Relier" (Many to One possible ici)
+    function drawAllConnections() {
+        document.querySelectorAll('.match-container').forEach(container => {
+            const svg = container.querySelector('.connections-layer');
+            svg.innerHTML = '';
+            const contRect = container.getBoundingClientRect();
+            
+            const leftCards = container.querySelectorAll('.left-card');
+            const rightCards = container.querySelectorAll('.right-card');
+
+            leftCards.forEach(lCard => {
+                const targetSym = lCard.dataset.target; // ex: "<"
+                // Trouver la carte de droite correspondante
+                let rCard = null;
+                rightCards.forEach(rc => { if(rc.dataset.val === targetSym) rCard = rc; });
+
+                if(rCard) {
+                    const lAnchor = lCard.querySelector('.anchor.left');
+                    const rAnchor = rCard.querySelector('.anchor.right');
+                    const lRect = lAnchor.getBoundingClientRect();
+                    const rRect = rAnchor.getBoundingClientRect();
+                    
+                    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                    line.setAttribute("x1", lRect.left + lRect.width/2 - contRect.left);
+                    line.setAttribute("y1", lRect.top + lRect.height/2 - contRect.top);
+                    line.setAttribute("x2", rRect.left + rRect.width/2 - contRect.left);
+                    line.setAttribute("y2", rRect.top + rRect.height/2 - contRect.top);
+                    line.setAttribute("class", "connection-line");
+                    svg.appendChild(line);
+                }
+            });
+        });
+    }
+
+    function toggleCorrection() { document.getElementById('sheet').classList.toggle('show-corr'); }
+    window.addEventListener('resize', drawAllConnections);
+    window.onload = generateSheet;
+</script>
+</body>
+</html>
